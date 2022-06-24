@@ -1,0 +1,209 @@
+---
+title: "Untitled"
+output:
+  html_document:
+    keep_md: true
+date: '2022-06-24'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Review 
+-통계 검정
+  +평균 차이 검정 : 수치 데이터 + 범주 데이터 (두 그룹)
+    -중급 이상 : 세 그룹 이상 평균 차이 검정
+  +비율 차이 검정 : 범주 데이터
+  +상관 관계 : 수치 데이터
+  +회귀 
+  
+  -통계 검정 사전 준비
+  +분석을 위한 데이터가 적절한지 검정 
+  +등분산 검정, 수치 데이터가 정규분포를 이루는가 (정규성 검정)
+  
+-귀무가설, 대립가설 적절하게 설정 
+  +서울의 평균 임금과 부산의 평균 임금이 차이가 있을 것이다 
+  +선행연구 (논문 찾아서 응용)
+  
+- 테스트 
+  +t.test, chisq.test, cor.tost 
+  +p.value 
+    ~p.value > 0.05 --> 귀무가설 지지
+    ~p.value < 0.05 --> 대립가설 지지 
+
+## 회귀의 중요성
+-기초통계 : 특정한 결과에 영향을 주는 주 요인이 뭐냐? 이걸 찾는 것이 회귀 
+- 회귀분석과 종류 
+  + 1 세대 회귀 방법론 다항회귀분석, 다중회귀분석, 포아송 회귀분석, etc 
+  + 2 세대 회귀 방법론 : 구조방정식 
+
+-귀무가설 & 대립가설 존재 
+  + 귀무가설 : x(=독립변수)가 y(종속변수)에 영향을 주지 않는다 
+  + 대립가설 : x가 y에 영향을 준다 
+  
+- 머신러닝, 인공지능 
+  + 주 목적은 예측 
+  + y = ax + b 
+  
+- lm(종속변수 ~ 독립변수, data)
+  +p.value 
+  
+```{r}
+RA <-lm(formula=mpg~disp, data = mtcars)
+summary(RA)
+```
+
+
+
+```{r}
+library(dplyr)
+library(ggplot2)       
+library(foreign)
+```
+
+
+- 데이터를 불러온다. 
+```{r}
+mental <- read.spss("data/한국행정연구원_사회통합실태조사_데이터_2019.sav")
+class(mental) #객체 유형 확인인
+mental <- as.data.frame(mental)
+class(mental)
+```
+
+
+
+#추출 변수 (변수 설명, 척도 범위) : 영어 변수이름
+```{r}
+str(mental)
+
+mental <- mental %>%
+ select(q32_2, q1_4, q32_1, q34_1, q52, d17, d1, d2, ara)%>% #변수 추출출
+ rename(suicide=q32_2,
+        satisfaction=q1_4,
+        loneliness=q32_1,
+        family_belief=q34_1,
+        wealth=q52,
+        health=d17,
+        sex=d1,
+        age=d2,
+        area=ara)     
+str(mental) 
+
+```
+
+```{r}
+table(mental$suicide) #suicide의 빈도 확인
+table(mental$health) # health의 빈도 확인 
+table(mental$satisfaction) #satisfaction의 빈도 확인
+
+mental$suicide <-as.integer(mental$suicide)
+mental$satisfaction <- as.integer(mental$satisfaction)
+mental$loneliness <- as.integer(mental$loneliness)
+mental$family_belief <- as.integer(mental$family_belief)                               
+mental$wealth <- as.integer(mental$wealth)
+mental$health <- as.integer(mental$health)
+
+table(mental$suicide) #checking number of suicides
+table(mental$health) # health의 빈도 확인인
+table(mental$satisfaction)
+
+```
+
+```{r}
+mental$satisfaction<-mental$satisfaction-1 #번주 숫자 보정작업
+mental$wealth <-mental$wealth-1
+
+table(mental$satisfaction)
+
+mental$age <- as.character(mental$age)
+mental$sex <- as.character(mental$sex)
+mental$area <- as.character(mental$area)
+table(mental$sex) #sex의 범주별 빈도 구하기기
+
+table(mental$age) #age의 범주별 빈도 구하기
+table(mental$area) #area의 범주별 빈도 구하기기
+
+mental$age <- ifelse(mental$age == "19~29세", "20대",
+                     ifelse(mental$age=="60~69세", "60대", mental$age))
+summary(mental)
+
+```
+#성별 빈도분석
+```{r}
+mental %>%
+  group_by(sex) %>% # sex변수로 분류
+  summarise(n=n()) %>% # sex 변수의 범주별 빈도 구하기
+  mutate(total=sum(n), #sex 변수의 빈도총계 구하기
+         pct=round(n/total*100,1))#sex 변수의 범주별 비율 구하기
+```
+
+
+#연령대별 빈도분석
+```{r}
+mental %>%
+  group_by(age) %>% #age변수의 범주로 분류
+  summarise(n=n()) %>% #age 변수의 범주별 빈도 구하기
+  mutate(total=sum(n), # age 변수의 빈도총계 구하기
+         pct=round(n/total*100,1)) # age 변수의 범주별 비율 구하기
+```
+
+#성과 연령대의 교차 빈도 구하기
+```{r}
+table(mental$sex, mental$age)
+```
+
+#성과 연령대의 교차 백분율 구하기. 행별로 100%기준. 소수점 한자리
+```{r}
+round(prop.table(table(mental$sex, mental$age),1)*100,1)
+```
+```{r}
+chisq.test(mental$sex, mental$age)
+```
+```{r}
+mental %>%
+  summarise(m1=mean(suicide), m2=mean(satisfaction), m3=mean(loneliness),
+            m4=mean(family_belief), m5=mean(wealth), m6=mean(health))
+```
+
+```{r}
+RA <- lm(data = mental, suicide~satisfaction+loneliness) #다중회귀분석
+summary(RA) #분석 결과 상세히 보기 
+```
+```{r}
+cor.test(mental$satisfaction, mental$loneliness)
+```
+```{r}
+RA <-lm(data=mental, satisfaction~family_belief+wealth+health) #다중회귀분석석
+summary(RA)
+```
+```{r}
+RA <- lm(data=mental, loneliness~family_belief+wealth+health) #다중회귀분석
+summary(RA)
+```
+#성별 만족도 t-test
+```{r}
+t.test(data=mental, satisfaction~sex)
+```
+```{r}
+mental%>%
+  group_by(age) %>% 
+  summarise(m=mean(satisfaction)) %>%
+  arrange(desc(m))
+```
+```{r}
+area_Satisfaction <-mental %>%
+  group_by(area) %>% #area 변수의 범주로 분류하기
+  summarise(m=mean(satisfaction)) %>% #area 변수의 범주별로 평균 구하기 
+  arrange(desc(m)) #내림차순으로 정렬
+
+```
+
+```{r}
+ggplot(data=area_Satisfaction, aes(x=reorder(area,m), y=m))+
+  geom_col()+
+  ggtitle("지역별 만족도")+ #그래프 이름 지정
+  xlab("지역")+ #x축 이름 지정
+  ylab("만족도")+ #y축 이름 지정
+  coord_flip() #막대를 90도 회전시키기기
+```
